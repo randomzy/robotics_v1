@@ -16,6 +16,10 @@ To clone them, step inside the repository and run the following instructions
 git submodule init
 git submodule update
 ```
+Or you can clone this repository with the ```--recurse-submodules``` option
+```
+git clone <repo url> --recurse-submodules
+```
 
 **Ament CMake (Colcon) meta build system usage**
 ```
@@ -24,10 +28,11 @@ colcon build --symlink-install #create symbolic links for python, urdf, xacro, y
 colcon build --packages-up-to <package_name> #build package_name and all of it's dependencies
 colcon build --packages-select <package_name> #build only package_name without it's dependencies (faster if you have the dependencies already built)
 colcon build --event-handlers console_direct+ --event-handlers console_cohesion+ #show build and install process logs
-colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ #provide any list of CMake args
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON #provide any list of CMake args
 
 #all of the colcon build command can be combined
 #for full information check `colcon build --help
+#enabling CMAKE_EXPORT_COMPILE_COMMANDS in CMake generates a compilation database which is used by some language servers(e.g. clangd)
 ```
 
 **Automatic asset information generation**
@@ -45,7 +50,7 @@ colcon build --symlink-install --packages-up-to resource_builder --cmake-args -D
 ./install/resource_builder/lib/resource_builder/resource_builder src/ur_dev/ur_control_gui
 
 # build the whole workspace
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 ```
 
 **Dependency hierarchy diagram**
