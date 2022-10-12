@@ -7,6 +7,7 @@
 #include <rclcpp/node.hpp>
 #include "std_msgs/msg/empty.hpp"
 #include "robo_collector_interfaces/msg/user_authenticate.hpp"
+#include "robo_collector_interfaces/msg/robot_move_type.hpp"
 #include "robo_collector_common/defines/RoboCollectorFunctionalDefines.h"
 #include "game_engine/defines/ActionEventDefines.h"
 #include "utils/ErrorCode.h"
@@ -34,6 +35,7 @@ public:
 
 private:
   using UserAuthenticate = robo_collector_interfaces::msg::UserAuthenticate;
+  using RobotMoveType = robo_collector_interfaces::msg::RobotMoveType;
   using Empty = std_msgs::msg::Empty;
 
   ErrorCode initOutInterface(
@@ -45,6 +47,7 @@ private:
 
   CollectorGuiExternalBridgeOutInterface _outInterface;
   rclcpp::Publisher<UserAuthenticate>::SharedPtr _userAuthenticatePublisher;
+  rclcpp::Publisher<RobotMoveType>::SharedPtr _playerActPublisher;
   rclcpp::Publisher<Empty>::SharedPtr _toggleHelpPagePublisher;
   rclcpp::Publisher<Empty>::SharedPtr _toggleDebugInfoPublisher;
 
