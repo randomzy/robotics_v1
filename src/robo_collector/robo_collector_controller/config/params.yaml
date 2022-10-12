@@ -17,6 +17,6 @@
     ros2_executor_threads_num: 4
     
     use_local_controller_mode: True
-    user: not_set
-    repository: not_set
-    commit_sha: not_set
+    user: Martin Tanchev
+    repository: https://github.com/randomzy/robotics_v1.git
+    commit_sha: 425b461df503d3567dde1aad1f3c948f7dbee600
