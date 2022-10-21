@@ -11,6 +11,8 @@
 
 //Own components headers
 #include "robo_common/layout/field/FieldPos.h"
+#include "robo_common/Grid.h"
+#include "robo_common/DynamicGrid.h"
 
 //Forward declarations
 
@@ -61,6 +63,7 @@ struct RobotState {
   FieldPos fieldPos;
   int32_t robotId = 0;
   Direction dir = Direction::UP;
+  std::string toString() const;
 };
 
 enum class RobotFieldMarkers {
@@ -98,5 +101,8 @@ struct UserData {
 };
 
 inline constexpr int32_t INDICATOR_PANEL_MAX_VALUE = 400;
+
+using DynamicFieldMap = DynamicGrid<uint8_t>;
+using FieldMap = Grid<uint8_t>;
 
 #endif /* ROBO_COMMON_ROBOCOMMONDEFINES_H_ */

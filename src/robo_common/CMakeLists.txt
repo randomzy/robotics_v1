@@ -62,6 +62,7 @@ add_library(
         ${_INC_DIR}/helpers/CollisionWatcher.h
         ${_INC_DIR}/helpers/LevelFileLoader.h
         
+        ${_SRC_DIR}/defines/RoboCommonDefines.cpp
         ${_SRC_DIR}/layout/RoboCommonLayout.cpp
         ${_SRC_DIR}/layout/field/Field.cpp
         ${_SRC_DIR}/layout/field/FieldPos.cpp
