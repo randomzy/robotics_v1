@@ -12,6 +12,7 @@ template<typename T>
 class Grid
 {
 public:
+    Grid() = default;
     Grid(int32_t rows, int32_t cols, T const & value = T{})
         : m_rows(rows)
         , m_cols(cols)
@@ -24,16 +25,21 @@ public:
     }
     T & at(FieldPos const & pos)
     {
-        return const_cast<T&>(const_cast<Grid const *>(this)->at(pos));
+        return at(pos.row, pos.col);
     }
     T const & at(int32_t row, int32_t col) const
     {
         assert(row >= 0 && row < m_rows && col >= 0 && col < m_cols);
         return m_data[col + row*m_cols];
     }
-    T  & at(int32_t row, int32_t col)
+    T & at(int32_t row, int32_t col)
     {
-        return const_cast<T&>(const_cast<Grid const *>(this)->at(row, col));
+        assert(row >= 0 && row < m_rows && col >= 0 && col < m_cols);
+        return m_data[col + row*m_cols];
+    }
+    bool contains(FieldPos const & pos) const
+    {
+        return pos.col < m_cols && pos.row < m_rows && pos.col >= 0 && pos.row >= 0;
     }
     int32_t rows() const
     {

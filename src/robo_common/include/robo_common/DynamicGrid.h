@@ -9,10 +9,6 @@ template<typename T>
 class DynamicGrid
 {
 public:
-    void insert(FieldPos const & pos, T const & element)
-    {
-        m_data[pos] = element;
-    }
     bool contains(FieldPos const & pos) const
     {
         return m_data.find(pos) != m_data.end();
@@ -21,9 +17,10 @@ public:
     {
         return m_data.at(pos);
     }
-    T  & at(FieldPos const & pos)
+    // TODO: implement proper operator []
+    T & at(FieldPos const & pos)
     {
-        return const_cast<T&>(const_cast<DynamicGrid const *>(this)->at(pos));
+        return m_data[pos];
     }
     auto cbegin() const
     {

@@ -25,10 +25,14 @@ add_executable(
     ${PROJECT_NAME}
         ${_INC_DIR}/Application.h
         ${_INC_DIR}/external_api/MapExplorerExternalBridge.h
+        ${_INC_DIR}/external_api/LongestSequenceMinerExternalBridge.h
 
         ${_SRC_DIR}/main.cpp
         ${_SRC_DIR}/Application.cpp
         ${_SRC_DIR}/external_api/MapExplorerExternalBridge.cpp
+        ${_SRC_DIR}/external_api/LongestSequenceMinerExternalBridge.cpp
+
+        /home/ubuntu/workspace/robotics_v1/src/robo_miner/robo_miner_controller/src/external_api/LongestSequenceMinerExternalBridge.cpp
 )
 
 target_include_directories(
