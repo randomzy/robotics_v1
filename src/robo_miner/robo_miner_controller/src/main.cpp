@@ -12,7 +12,7 @@ ApplicationConfig generateConfig()
 
     config.userdata.user = "Martin Tanchev";
     config.userdata.repository = "https://github.com/randomzy/robotics_v1.git";
-    config.userdata.commitSha = "";
+    config.userdata.commitSha = "8751ac2ece8cfc9e703279617a79712b51923dab";
 
     // execution policy must be RUN_IN_DEDICATED_THREAD:
     config.ros2CommunicatorConfig.executionPolicy = ExecutionPolicy::RUN_IN_DEDICATED_THREAD;
