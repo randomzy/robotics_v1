@@ -47,8 +47,7 @@ inline bool canStepOn(uint8_t marker)
     return
         marker != RoboCommonDefines::Markers::BIG_OBSTACLE_MARKER &&
         marker != RoboCommonDefines::Markers::SMALL_OBSTACLE_MARKER &&
-        marker != RoboCommonDefines::Markers::FIELD_OUT_OF_BOUND_MARKER &&
-        marker != RoboCommonDefines::Markers::UNKNOWN_FIELD_MARKER;
+        marker != RoboCommonDefines::Markers::FIELD_OUT_OF_BOUND_MARKER;
 }
 
 inline FieldPos updatePosition(MoveType move, FieldPos position, Direction direction)
@@ -158,7 +157,8 @@ inline void moveToNeighbour(RobotState const & state, FieldPos const & dest, QF 
     }
 };
 
-inline FieldMap convertDynamicFieldMap(DynamicFieldMap const & dynamicGrid)
+template<bool TrimBorder = true>
+FieldMap convertDynamicFieldMap(DynamicFieldMap const & dynamicGrid)
 {
     auto minmax_col = std::minmax_element(dynamicGrid.cbegin(), dynamicGrid.cend(), [](const auto & a, const auto & b){
         return a.first.col < b.first.col;
@@ -176,17 +176,24 @@ inline FieldMap convertDynamicFieldMap(DynamicFieldMap const & dynamicGrid)
     int32_t rows = max_row - min_row + 1;
     int32_t cols = max_col - min_col + 1;
 
-    assert(rows >= 2 && cols >= 2);
-    
-    // subtract -2 beacuse first and last row/col are borders
-    FieldMap fieldMap(rows-2, cols-2);
+    if constexpr (TrimBorder) {
+        assert(rows >= 2 && cols >= 2);
+        // subtract -2 beacuse first and last row/col are borders
+        rows -= 2;
+        cols -= 2;
+        min_row += 1;
+        min_col += 1;
+        max_row -= 1;
+        max_col -= 1;
+    }    
+    FieldMap fieldMap(rows, cols);
 
-    for (int r = min_row+1; r <= max_row-1; r++) {
-        for (int c = min_col+1; c <= max_col-1; c++) {
+    for (int r = min_row; r <= max_row; r++) {
+        for (int c = min_col; c <= max_col; c++) {
             if (dynamicGrid.contains({r,c})) {
-                fieldMap.at(r - (min_row+1), c - (min_col+1)) = dynamicGrid.at({r,c});
+                fieldMap.at(r - min_row, c - min_col) = dynamicGrid.at({r,c});
             } else {
-                fieldMap.at(r - (min_row+1), c - (min_col+1)) = 'X';
+                fieldMap.at(r - min_row, c - min_col) = 'X';
             }
         }
     }

@@ -63,6 +63,7 @@ template<typename T>
 std::string toString(Grid<T> const & grid)
 {
     std::stringstream ss;
+    ss << "rows: " << grid.rows() << " cols: " << grid.cols() << std::endl;
     for (int r = 0; r < grid.rows(); ++r) {
         for (int c = 0; c < grid.cols(); ++c) {
             ss << grid.at(r,c);

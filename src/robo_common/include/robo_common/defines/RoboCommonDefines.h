@@ -59,8 +59,15 @@ enum class Achievement {
   SINGLE_STAR, DOUBLE_STAR, TRIPLE_STAR
 };
 
+struct Battery
+{
+  int32_t max_moves;
+  int32_t moves_left;
+};
+
 struct RobotState {
   FieldPos fieldPos;
+  Battery battery;
   int32_t robotId = 0;
   Direction dir = Direction::UP;
   std::string toString() const;
