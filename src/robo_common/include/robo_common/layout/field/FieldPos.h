@@ -17,10 +17,13 @@ struct FieldPos {
 
   bool operator==(const FieldPos& other) const;
   bool operator<(const FieldPos& other) const;
+  FieldPos operator + (FieldPos const & other);
 
   int32_t row { 0 };
   int32_t col { 0 };
 };
+
+std::string toString(FieldPos const & fieldPos);
 
 template<>
 struct std::hash<FieldPos>

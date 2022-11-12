@@ -200,4 +200,9 @@ FieldMap convertDynamicFieldMap(DynamicFieldMap const & dynamicGrid)
     return fieldMap;
 }
 
+inline size_t stZDistance(const FieldPos & a, const FieldPos & b)
+{
+    return std::abs(a.row - b.row) + std::abs(a.col - b.col);
+}
+
 #endif // MISC_H_

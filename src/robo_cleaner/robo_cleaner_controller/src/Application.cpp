@@ -61,6 +61,57 @@ void Application::run()
     exploreMap();
 }
 
+inline std::vector<FieldPos> shortestPath(DynamicFieldMap const & map, FieldPos const & src, FieldPos const & dest)
+{
+    std::queue<FieldPos> queue;
+    DynamicGrid<bool> visited;
+    DynamicGrid<FieldPos> predecessor;
+
+    const auto invalid = std::numeric_limits<decltype(FieldPos::col)>::min();
+    const FieldPos nil{invalid, invalid};
+    const std::array<FieldPos, 4> neighbours = {{{0,-1},{1,0},{0,1},{-1,0}}};
+
+    visited.at(src) = true;
+    predecessor.at(src) = nil;
+    queue.push(src);
+
+    bool found = false;
+
+    while(!queue.empty() && !found) {
+        auto curr = queue.front();
+        queue.pop();
+        for (auto const & neighbour : neighbours) {
+            FieldPos next{neighbour.row + curr.row, neighbour.col + curr.col};
+            if (!visited.contains(next) && 
+                map.contains(next) &&
+                canStepOn(map.at(next))
+            ) {
+                visited.at(next) = true;
+                queue.push(next);
+                predecessor.at(next) = curr;
+                if (next == dest) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // reconstruct path
+    std::vector<FieldPos> path;
+    FieldPos crawl = dest; 
+    path.push_back(crawl);
+    predecessor.at(crawl);
+    while(predecessor.at(crawl) != nil) {
+        crawl = predecessor.at(crawl);
+        path.push_back(crawl);
+    }
+
+    std::reverse(path.begin(), path.end());
+
+    return path;
+}
+
 void Application::exploreMap()
 {
     DynamicGrid<uint8_t> dynamicFieldMap;
@@ -75,17 +126,24 @@ void Application::exploreMap()
 
     auto robotMove = [&](MoveType moveType) -> bool{
         uint8_t marker;
-        m_mapExplorerExternalBridge->robotMove(moveType, marker);
-        auto posInFront = FieldUtils::getAdjacentPos(m_robotState.dir, m_robotState.fieldPos);
+        while (!m_mapExplorerExternalBridge->robotMove(moveType, marker)) {
+            LOG("robot move was canceled or could not be complete, trying again...");
+        }
+        LOG("Current robot state: %s", m_robotState.toString().c_str());
+        LOG("Marker infront: '%c'", marker);
         switch (moveType) {
             case MoveType::FORWARD:
+            {
+                auto posInFront = FieldUtils::getAdjacentPos(m_robotState.dir, m_robotState.fieldPos);
+
                 if (!dynamicFieldMap.contains(posInFront)) {
                     dynamicFieldMap.at(posInFront) = marker;
-                    if (canStepOn(marker)) {
-                        m_robotState.fieldPos = posInFront;
-                    }
+                }
+                if (canStepOn(marker)) {
+                    m_robotState.fieldPos = posInFront;
                 }
                 break;
+            }
             case MoveType::ROTATE_LEFT:
                 m_robotState.dir = rotateCC(m_robotState.dir);
                 break;
@@ -95,41 +153,49 @@ void Application::exploreMap()
             default:
                 LOGERR("Unknown move type");
         }
+        LOG("New robot state: %s", m_robotState.toString().c_str());
         m_mapExplorerExternalBridge->queryBatteryStatus(m_robotState.battery);
         return true;
     };
 
-    
 
     robotMove(MoveType::ROTATE_LEFT);
     robotMove(MoveType::FORWARD);
-    robotMove(MoveType::ROTATE_RIGHT);
     robotMove(MoveType::FORWARD);
+    return;
+    
 
-    auto map = convertDynamicFieldMap<false>(dynamicFieldMap);
-    std::cout << toString(map) << std::endl;
-}
-
-std::vector<FieldPos> bfs(FieldPos const & start, Grid<uint8_t> const & map, Grid<int> & visited)
-{
-    std::vector<FieldPos> sequence;
-    std::queue<FieldPos> q;
-    q.push(start);
-    visited.at(start) = 1;
-    sequence.emplace_back(start);
-    uint8_t type = map.at(start);
+    std::stack<FieldPos> frontier;
     const std::array<FieldPos, 4> neighbours = {{{0,-1},{1,0},{0,1},{-1,0}}};
-    while(!q.empty()) {
-        auto curr = q.front();
-        q.pop();
-        for (auto const & neighbour : neighbours) {
-            FieldPos v(curr.row + neighbour.row, curr.col + neighbour.col);
-            if (map.contains(v) && !visited.at(v) && canStepOn(map.at(v)) && map.at(v) == type) {
-                visited.at(v) = 1;
-                q.push(v);
-                sequence.emplace_back(v);
+    for (auto const & n : neighbours) {
+        frontier.push(n);
+    }
+    while (!frontier.empty()) {
+        // auto next = std::min_element(frontier.begin(), frontier.end(), [this](FieldPos const & a, FieldPos const b){
+        //     return stZDistance(a, m_robotState.fieldPos) < stZDistance(b, m_robotState.fieldPos);
+        // });
+        auto u = frontier.top();
+        LOG("Upcoming pos: %s", toString(u).c_str());
+        frontier.pop();
+        if (!canStepOn(dynamicFieldMap.at(u))) {
+            LOG("Dropping current pos");
+            continue;
+        }
+        LOG("Move from %s to %s", toString(m_robotState.fieldPos).c_str(), toString(u).c_str());
+        auto path = shortestPath(dynamicFieldMap, m_robotState.fieldPos, u);
+        for (auto const & step : path) {
+            moveToNeighbour(m_robotState, step, [&](MoveType mt){robotMove(mt);});
+            if (canStepOn(m_dynamicMap.at(step))) {
+                for (const auto & neighbour : neighbours) {
+                    FieldPos v = m_robotState.fieldPos + neighbour;
+                    if (!dynamicFieldMap.contains(v)) {
+                        frontier.push(v);
+                    }
+                }
             }
         }
     }
-    return sequence;
+
+    auto map = convertDynamicFieldMap<false>(dynamicFieldMap);
+    std::cout << toString(map) << std::endl;
 }

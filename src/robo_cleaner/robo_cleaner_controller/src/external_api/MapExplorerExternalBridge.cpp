@@ -41,7 +41,7 @@ ErrorCode MapExplorerExternalBridge::init(MapExplorerExternalBridgeOutInterface 
     constexpr size_t queueSize = 10;
     const rclcpp::QoS qos(queueSize);
 
-    m_actionCallbackGroup = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+    m_actionCallbackGroup = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
     m_robotMoveActionClient = rclcpp_action::create_client<RobotMove>(this, ROBOT_MOVE_ACTION, m_actionCallbackGroup);
 
@@ -141,6 +141,7 @@ bool MapExplorerExternalBridge::queryChargeBattery(int32_t turns, Battery & batt
 bool MapExplorerExternalBridge::robotMove(MoveType moveType, uint8_t & marker)
 {
     using namespace std::placeholders;
+    using namespace std::literals;
 
     auto goalMsg = RobotMove::Goal();
     RobotMoveType moveMsg;
@@ -151,40 +152,48 @@ bool MapExplorerExternalBridge::robotMove(MoveType moveType, uint8_t & marker)
     sendGoalOptions.feedback_callback = std::bind(&MapExplorerExternalBridge::onRobotMoveFeedBack, this, _1, _2);
     std::packaged_task<void(const GoalHandleRobotMove::WrappedResult & result)> moveResultTask(std::bind(&MapExplorerExternalBridge::onRobotMoveResult, this, _1));
     auto future_result = moveResultTask.get_future();
-    sendGoalOptions.result_callback = [&moveResultTask](const GoalHandleRobotMove::WrappedResult & result){ moveResultTask(result); };
+    sendGoalOptions.result_callback = [&moveResultTask](const GoalHandleRobotMove::WrappedResult & result){
+        LOG("calling packaged task");
+        moveResultTask(result);
+    };
 
     auto result = m_robotMoveActionClient->async_send_goal(goalMsg, sendGoalOptions);
+    LOG("Goal with move type %d sent", moveType);
     auto response = result.get();
+    LOG("Waiting for server response");
 
     if (!response) {
-        LOG("Server rejected goal");
+        LOG("Goal rejected");
         return false;
-    } else {
-        LOG("Server accepted goal");
     }
-
+    LOG("Goal accepted");
+    LOG("Waiting for result");
     future_result.get();
-
-    if (!m_success) {
-        return false;
-    }
+    LOG("Result received");
+    // if (!m_success) {
+    //     return false;
+    // }
     marker = m_last_field_marker;
+    std::this_thread::sleep_for(10ms);
     return true;
 }
 
 void MapExplorerExternalBridge::onRobotMoveFeedBack([[maybe_unused]]const GoalHandleRobotMove::SharedPtr goalHandle, const std::shared_ptr<const RobotMove::Feedback> feedback)
 {
-    LOG("Approaching marker: '%c'", feedback->approaching_field_marker);
-    if (!canStepOn(feedback->approaching_field_marker))  {
-        // TODO: async_cancel_goal causes deadlock 
+    using namespace std::literals;
+    LOG("Approaching marker: %c", feedback->approaching_field_marker);
+    if (!canStepOn(feedback->approaching_field_marker)) {
+        // canceling a goal from this thread causes deadlock
         m_robotMoveActionClient->async_cancel_all_goals();
     }
+    m_last_field_marker = feedback->approaching_field_marker;
 }
 
 void MapExplorerExternalBridge::onRobotMoveResult(const GoalHandleRobotMove::WrappedResult & result)
 {
     m_success = result.result->success;
-    m_last_field_marker = result.result->processed_field_marker;
+    LOG("Result = %d; processed field marker = %c", m_success, result.result->processed_field_marker);
+    // m_last_field_marker = result.result->processed_field_marker;
 }
 
 void MapExplorerExternalBridge::onNodeSpinning()

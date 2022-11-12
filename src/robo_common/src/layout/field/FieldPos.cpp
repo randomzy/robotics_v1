@@ -23,3 +23,13 @@ bool FieldPos::operator<(const FieldPos& other) const {
 
   return row < other.row;
 }
+
+FieldPos FieldPos::operator + (FieldPos const & other)
+{
+  return {other.row + row, other.col + col};
+}
+
+std::string toString(FieldPos const & fieldPos)
+{
+  return "row = " + std::to_string(fieldPos.row) + "; col = " + std::to_string(fieldPos.col);
+};
