@@ -4,16 +4,12 @@
 #include "robo_arm_controller/external_api/RoboArmExternalBridge.h"
 #include "utils/ErrorCode.h"
 #include "ros2_game_engine/communicator/Ros2Communicator.h"
-
-struct ApplicationConfig
-{
-    Ros2CommunicatorConfig ros2CommunicatorConfig;
-};
+#include "robo_arm_controller/Config.h"
 
 class Application
 {
 public:
-    ErrorCode init(ApplicationConfig const & config);
+    ErrorCode init(RoboArmConfig const & config);
     void deinit();
     void run();
 private:
@@ -29,6 +25,8 @@ private:
     std::condition_variable m_nodeSpinCond;
     bool m_nodeSpinning = false;
 
+    RoboArmConfig m_cfg;
+    std::string m_URScriptHeader;
 };
 
 #endif // APPLICATION_H_

@@ -3,14 +3,14 @@
 #include "utils/Log.h"
 #include "robo_arm_controller/Application.h"
 
-ApplicationConfig generateConfig()
+RoboArmConfig generateConfig()
 {
-    ApplicationConfig config;
+    RoboArmConfig config;
 
     // execution policy must be RUN_IN_DEDICATED_THREAD:
     config.ros2CommunicatorConfig.executionPolicy = ExecutionPolicy::RUN_IN_DEDICATED_THREAD;
     config.ros2CommunicatorConfig.numberOfThreads = 0;
-    config.ros2CommunicatorConfig.executorType = ExecutorType::SINGLE_THREADED;
+    config.ros2CommunicatorConfig.executorType = ExecutorType::MULTI_THREADED;
     
     return config;
 }

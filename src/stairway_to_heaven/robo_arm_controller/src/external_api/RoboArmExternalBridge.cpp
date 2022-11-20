@@ -51,7 +51,7 @@ bool RoboArmExternalBridge::sendUrScript(std::string const & script)
 
     bool success = response->success;
     if (!success) {
-        LOG("%s", response->error_reason.c_str());
+        LOGERR("%s", response->error_reason.c_str());
     }
     return success;
 }
@@ -64,7 +64,7 @@ bool RoboArmExternalBridge::queryToolOrientation(tf2::Vector3 & angleAxis)
 
     bool success = response->success;
     if (!success) {
-        LOG("%s", response->error_reason.c_str());
+        LOGERR("%s", response->error_reason.c_str());
     }
     angleAxis.setX(response->angle_axis.x);
     angleAxis.setY(response->angle_axis.y);

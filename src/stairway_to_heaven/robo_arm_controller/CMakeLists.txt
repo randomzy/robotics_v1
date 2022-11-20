@@ -16,6 +16,7 @@ find_package(urscript_common REQUIRED)
 find_package(ros2_game_engine REQUIRED)
 
 set(_INC_FOLDER_NAME include)
+set(_RESOURCE_FOLDER_NAME resources)
 set(_INC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${_INC_FOLDER_NAME}/${PROJECT_NAME})
 set(_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
@@ -34,9 +35,11 @@ target_include_directories(
     PRIVATE
         $<BUILD_INTERFACE:
             ${CMAKE_CURRENT_SOURCE_DIR}/${_INC_FOLDER_NAME}
+            ${CMAKE_CURRENT_SOURCE_DIR}/${_RESOURCE_FOLDER_NAME}
         >
         $<INSTALL_INTERFACE:
             ${_INC_FOLDER_NAME}
+            ${_RESOURCE_FOLDER_NAME}
         >
 )
 
@@ -76,3 +79,8 @@ enable_target_warnings(${PROJECT_NAME})
 set_target_visibility(${PROJECT_NAME})
 # enable_target_sanitizer(${PROJECT_NAME} "address")
 
+# Install resources and auto-generated headers and resource bin files
+install(
+    DIRECTORY ${_RESOURCE_FOLDER_NAME}/
+    DESTINATION share/${PROJECT_NAME}/${_RESOURCE_FOLDER_NAME}/
+)
