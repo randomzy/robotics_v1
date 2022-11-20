@@ -29,9 +29,9 @@ int32_t main(int32_t argc, char ** argv)
     }
     app.run();
 
-    app.deinit();
-    
     rclcpp::shutdown();
+    
+    app.deinit();
     
     return EXIT_SUCCESS;
 }
