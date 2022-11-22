@@ -26,7 +26,8 @@ private:
     bool m_nodeSpinning = false;
 
     RoboArmConfig m_cfg;
-    std::string m_URScriptHeader;
+    std::string m_URScriptHardwareHeader;
+    const std::string m_URScriptSimulationHeader = "def move():\n";
 };
 
 #endif // APPLICATION_H_

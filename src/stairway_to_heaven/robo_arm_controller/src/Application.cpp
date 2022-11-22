@@ -2,11 +2,9 @@
 #include "utils/Log.h"
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <deque>
-#include <sstream>
-#include <fstream>
 #include <tf2/LinearMath/Quaternion.h>
 #include "robo_arm_controller/Math.h"
-#include <variant>
+#include "robo_arm_controller/CommandWrappers.h"
 
 namespace {
     constexpr auto PROJECT_NAME = "robo_arm_controller";
@@ -41,7 +39,7 @@ ErrorCode Application::init(RoboArmConfig const & config)
     }
 
     try {
-        m_URScriptHeader = load_file(projectInstallPrefix + "/resources/scripts/header.script");
+        m_URScriptHardwareHeader = load_file(projectInstallPrefix + "/resources/scripts/header.script");
     } catch (std::exception & e) {
         LOGERR("%s", e.what());
         return ErrorCode::FAILURE; 
@@ -83,136 +81,38 @@ void Application::deinit()
     m_ros2Communicator.reset();
 }
 
-// TODO: cleanup this mess
-
-constexpr size_t joint_count = 6;
-using JointDescription = std::array<float, joint_count>;
-
-struct MovejCommand
-{
-    JointDescription pose{};
-    float acceleration{0.f};
-    float velocity{0.f};
-};
-struct MovelCommand
-{
-    tf2::Vector3 point{};
-    tf2::Vector3 angleAxis{};
-    float acceleration {0.f};
-    float velocity {0.f};
-    float radius {0.f};
-};
-
-struct InitGrippersCommand{};
-struct OpenGrippersCommand{};
-struct CloseGrippersCommand{};
-
-std::ostream & operator << (std::ostream & os, MovejCommand const & mjc)
-{
-    os << "\tmovej([";
-    const char * delim = "";
-    for (const auto & j : mjc.pose) {
-        os << delim << j; 
-        delim = ",";
-    }
-    os << "],a=" << mjc.acceleration;
-    os << ",v=" << mjc.velocity;
-    os << ")\n";
-    return os;
-}
-
-std::ostream & operator << (std::ostream & os, MovelCommand const & mlc)
-{
-    os << "\tmovel(";
-    os << "p[" << mlc.point.x() << "," << mlc.point.y() << "," << mlc.point.z();
-    os << "," << mlc.angleAxis.x() << "," << mlc.angleAxis.y() << "," << mlc.angleAxis.z() << "]";
-    os << "," << "a=" << mlc.acceleration << ",v=" << mlc.velocity << ",t=0,r=" << mlc.radius;
-    os << ")\n";
-    return os;
-}
-
-std::ostream & operator << (std::ostream & os, [[maybe_unused]]InitGrippersCommand const & igc)
-{
-    os << "\trq_activate_and_wait()";
-    return os;
-}
-
-std::ostream & operator << (std::ostream & os, [[maybe_unused]]OpenGrippersCommand const & igc)
-{
-    os << "\trq_open_and_wait()";
-    return os;
-}
-
-std::ostream & operator << (std::ostream & os, [[maybe_unused]]CloseGrippersCommand const & igc)
-{
-    os << "\trq_close_and_wait()";
-    return os;
-}
-
-using MoveCommand = std::variant<MovejCommand, MovelCommand, InitGrippersCommand, OpenGrippersCommand, CloseGrippersCommand>;
-
-std::string robotDo(std::vector<MoveCommand> const & commands)
-{
-    std::stringstream ss;
-    ss << "def move():\n";
-    for (const auto & command : commands) {
-        std::visit([&ss](auto && cmd){
-            ss << cmd;
-        }, command);
-    }
-    ss << "end" << std::endl;
-    return ss.str();
-}
-
-std::string to_string(tf2::Vector3 const & v)
-{
-    std::stringstream ss;
-    ss << v.x() << "," << v.y() << "," << v.z();
-    return ss.str();
-}
-
-std::string toCSV(MovelCommand const & ml)
-{
-    return to_string(ml.point*100);
-}
-
-void writeCSV(std::vector<MoveCommand> const & commands, std::string const & csvFilename)
-{
-    std::ofstream ofs(csvFilename);
-    for (const auto & command : commands) {
-        std::visit([&ofs](auto const & cmd){
-            using T = std::decay_t<decltype(cmd)>;
-            if constexpr (std::is_same_v<T, MovelCommand>) {
-                ofs << toCSV(cmd) << "\n";
-            }
-        }, command);
-    }
-}
-
 void Application::run()
 {
     // generate staircase, the center of the first "step" is situated at (0,0,0)
-    // and the step goes up in the positive Y direction
+    // and the steps goes up in the positive Y direction
     std::deque<tf2::Vector3> staircase;
     for (int c = 0; c < 4; c++) {
         for (int z = 0; z <= c; z++) {
-            staircase.emplace_back(0, m_cfg.boxDim*c, m_cfg.boxDim * z);
+            staircase.emplace_back(0, (m_cfg.boxDim + m_cfg.boxDelta)*c, m_cfg.boxDim * z);
         }
     }
-    // place staircase on the table with the right orientation
-    std::transform(staircase.begin(), staircase.end(), staircase.begin(),
-        [this](tf2::Vector3 const & in) {
-            // Mind the order of transformations
-            // rotation and translation are not commutative
-            // rotate first, to give the right orientation
-            // then translate to place on table
-            tf2::Quaternion rotation;
-            rotation.setRotation(tf2::Vector3{0,0,1}, tf2Radians(m_cfg.staircaseRotation));
-            auto result = tf2::quatRotate(rotation, in);
-            result = result + m_cfg.positionOfFirstStep;
-            return result;
-        }
-    );
+    std::deque<tf2::Vector3> tower;
+    for (int z = 0; z < 4; z++) {
+        tower.emplace_back(0, m_cfg.boxDim*3, m_cfg.boxDim * (4 + z));
+    }
+    auto modelTransform = [this](auto & pts) {
+        std::transform(pts.begin(), pts.end(), pts.begin(),
+            [this](tf2::Vector3 const & in) {
+                // Mind the order of transformations
+                // rotation and translation are not commutative
+                // rotate first, to give the right orientation
+                // then translate to place on table
+                tf2::Quaternion rotation;
+                rotation.setRotation(tf2::Vector3{0,0,1}, tf2Radians(m_cfg.staircaseRotation));
+                auto result = tf2::quatRotate(rotation, in);
+                result = result + m_cfg.positionOfFirstStep;
+                return result;
+            }
+        );
+    };
+    // place staircase and tower on the table with the right orientation
+    modelTransform(staircase);
+    modelTransform(tower);
 
     std::vector<MoveCommand> commands;
     if (!m_cfg.isSimulation) {
@@ -231,11 +131,15 @@ void Application::run()
     auto [angle, axis] = decomposeAngleAxis(angleAxis);
     LOG("TCP angle: %f deg, axis: %f %f %f", tf2Degrees(angle), axis.x(), axis.y(), axis.z());
 
-    auto boxes = m_cfg.boxes;
-    std::reverse(boxes.begin(), boxes.end());
+    std::deque<tf2::Vector3> boxes{m_cfg.boxes.begin(), m_cfg.boxes.end()};
 
     MovelCommand homePosition{m_cfg.homePoint, m_cfg.homeAngleAxis, m_cfg.acceleration, m_cfg.velocity, 0};
     commands.push_back(homePosition);
+
+
+    // TODO: calculate maximum radius of each two segments
+    // float radius = m_cfg.boxDim/2 - m_cfg.placeDelta.length();
+    auto radius = m_cfg.radius;
 
     auto avoidBase = [&](tf2::Vector3 const & a, tf2::Vector3 const & b)
     {
@@ -245,43 +149,87 @@ void Application::run()
             auto proj = tf2::Vector3{p.x(), p.y(), 0.0};
             auto t = m_cfg.safeOzRadius/proj.length();
             auto avoidOrigin = tf2::Vector3{p.x()*t, p.y()*t , p.z()};
-            commands.push_back(MovelCommand{avoidOrigin, angleAxis, m_cfg.acceleration, m_cfg.velocity, 0});
+            commands.push_back(MovelCommand{avoidOrigin, angleAxis, m_cfg.acceleration, m_cfg.velocity, radius});
         }
     };
 
     auto lastPoint = m_cfg.homePoint;
     while(!staircase.empty()) {
-        auto targetPick = boxes.back();
-        boxes.pop_back();
-        auto approachPick = targetPick + m_cfg.approachOffset;
+        auto targetPick = boxes.front();
+        boxes.pop_front();
+        auto approachPick = targetPick + m_cfg.approachPick;
+        auto retreatPick = approachPick;
 
         avoidBase(lastPoint, approachPick);
 
-        commands.push_back(MovelCommand{approachPick,angleAxis,m_cfg.acceleration, m_cfg.velocity, 0});
-        commands.push_back(MovelCommand{targetPick,angleAxis,m_cfg.acceleration,m_cfg.velocity, 0});
+        commands.push_back(MovelCommand{approachPick, m_cfg.boxesOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
+        commands.push_back(MovelCommand{targetPick, m_cfg.boxesOrientation, m_cfg.acceleration, m_cfg.velocity, 0});
 
         if (!m_cfg.isSimulation) {
             commands.push_back(CloseGrippersCommand{});
         }
-        commands.push_back(MovelCommand{approachPick,angleAxis,m_cfg.acceleration,m_cfg.velocity, 0});
+        commands.push_back(MovelCommand{retreatPick, m_cfg.boxesOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
         auto targetPlace = staircase.front();
         staircase.pop_front();
-        auto approachPlace = targetPlace + m_cfg.approachOffset;
-        targetPlace += m_cfg.placeDelta;
+        auto approachPlace2 = targetPlace + m_cfg.approachPlace2;
+        auto approachPlace = targetPlace + m_cfg.approachPlace;
+        auto retreatPlace = targetPlace + m_cfg.approachPick;
+        targetPlace += tf2::Vector3{0,0,m_cfg.boxDelta};
 
         avoidBase(approachPick, approachPlace);
 
-        commands.push_back(MovelCommand{approachPlace, angleAxis,m_cfg.acceleration,m_cfg.velocity,0});
-        commands.push_back(MovelCommand{targetPlace, angleAxis,m_cfg.acceleration,m_cfg.velocity,0});
+        commands.push_back(MovelCommand{approachPlace, m_cfg.placeOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
+        commands.push_back(MovelCommand{approachPlace2, m_cfg.placeOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
+        commands.push_back(MovelCommand{targetPlace, m_cfg.placeOrientation, m_cfg.acceleration, m_cfg.velocity, 0});
         if (!m_cfg.isSimulation) {
             commands.push_back(OpenGrippersCommand{});
         }
-        commands.push_back(MovelCommand{approachPlace, angleAxis,m_cfg.acceleration,m_cfg.velocity,0});
+        commands.push_back(MovelCommand{retreatPlace, m_cfg.placeOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
 
         lastPoint = approachPlace;
     }
-    auto script = robotDo(commands);
+
+    // TODO: refactor duplication of code
+    while(!tower.empty())
+    {
+        auto targetPick = boxes.front();
+        boxes.pop_front();
+        auto approachPick = targetPick + m_cfg.approachPick;
+        auto retreatPick = approachPick;
+
+        avoidBase(lastPoint, approachPick);
+
+        commands.push_back(MovelCommand{approachPick, m_cfg.boxesOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
+        commands.push_back(MovelCommand{targetPick, m_cfg.boxesOrientation, m_cfg.acceleration, m_cfg.velocity, 0});
+
+        if (!m_cfg.isSimulation) {
+            commands.push_back(CloseGrippersCommand{});
+        }
+        commands.push_back(MovelCommand{retreatPick, m_cfg.boxesOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
+        auto targetPlace = tower.front();
+        tower.pop_front();
+
+        targetPlace += tf2::Vector3{0,0,m_cfg.boxDelta};
+        auto approachPlace = targetPlace + m_cfg.approachPlace3;
+        auto retreatPlace = approachPlace;
+
+        avoidBase(approachPick, approachPlace);
+
+        commands.push_back(MovelCommand{approachPlace, m_cfg.towerPlaceOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
+        commands.push_back(MovelCommand{targetPlace, m_cfg.towerPlaceOrientation, m_cfg.acceleration, m_cfg.velocity, 0});
+        if (!m_cfg.isSimulation) {
+            commands.push_back(OpenGrippersCommand{});
+        }
+        if (tower.empty()) {
+            radius = 0;
+        }
+        commands.push_back(MovelCommand{retreatPlace, m_cfg.towerPlaceOrientation, m_cfg.acceleration, m_cfg.velocity, radius});
+
+        lastPoint = approachPlace;
+    }
+
+    auto script = robotDo(commands, m_cfg.isSimulation ? m_URScriptSimulationHeader : m_URScriptHardwareHeader);
     writeCSV(commands, m_cfg.csvFilename);
     std::cout << "Executing script:" << std::endl << script << std::endl;
-    // m_roboArmExternalBridge->sendUrScript(script);
+    m_roboArmExternalBridge->sendUrScript(script);
 }
