@@ -12,6 +12,7 @@
 
 namespace cw{
     constexpr size_t joint_count = 6;
+    constexpr auto indent = "  ";
 }
 
 using JointDescription = std::array<float, cw::joint_count>;
@@ -38,7 +39,7 @@ struct CloseGrippersCommand{};
 
 inline std::ostream & operator << (std::ostream & os, MovejCommand const & mjc)
 {
-    os << "\tmovej([";
+    os << cw::indent << "movej([";
     const char * delim = "";
     for (const auto & j : mjc.pose) {
         os << delim << j; 
@@ -52,7 +53,7 @@ inline std::ostream & operator << (std::ostream & os, MovejCommand const & mjc)
 
 inline std::ostream & operator << (std::ostream & os, MovelCommand const & mlc)
 {
-    os << "\tmovel(";
+    os << cw::indent << "movel(";
     os << "p[" << mlc.point.x() << "," << mlc.point.y() << "," << mlc.point.z();
     os << "," << mlc.angleAxis.x() << "," << mlc.angleAxis.y() << "," << mlc.angleAxis.z() << "]";
     os << "," << "a=" << mlc.acceleration << ",v=" << mlc.velocity << ",t=0,r=" << mlc.radius;
@@ -62,19 +63,19 @@ inline std::ostream & operator << (std::ostream & os, MovelCommand const & mlc)
 
 inline std::ostream & operator << (std::ostream & os, [[maybe_unused]]InitGrippersCommand const & igc)
 {
-    os << "\trq_activate_and_wait()\n";
+    os << cw::indent << "rq_activate_and_wait()\n";
     return os;
 }
 
 inline std::ostream & operator << (std::ostream & os, [[maybe_unused]]OpenGrippersCommand const & igc)
 {
-    os << "\trq_open_and_wait()\n";
+    os << cw::indent << "rq_open_and_wait()\n";
     return os;
 }
 
 inline std::ostream & operator << (std::ostream & os, [[maybe_unused]]CloseGrippersCommand const & igc)
 {
-    os << "\trq_close_and_wait()\n";
+    os << cw::indent << "rq_close_and_wait()\n";
     return os;
 }
 
